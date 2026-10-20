@@ -31,7 +31,9 @@ type Customer = Awaited<ReturnType<typeof kit.customer>>;
 /** Deliver everything that is due now, so failure injection below hits only the rows under test. */
 async function drain() {
   msg.clearFailures();
-  await kit.sql(`UPDATE notifications.notifications SET next_attempt_at = now() WHERE status = 'PENDING'`);
+  await kit.sql(
+    `UPDATE notifications.notifications SET next_attempt_at = now() - interval '1 second' WHERE status = 'PENDING'`,
+  );
   await h.modules.notifications.deliver();
 }
 /** Make every currently due external message fail once with `kind`. */
@@ -105,7 +107,9 @@ describe('outbox from events', () => {
     ).toBe(true);
     for (const r of pending)
       expect(new Date(r.next_attempt_at).getTime()).toBeGreaterThan(Date.now() + 50_000);
-    await kit.sql(`UPDATE notifications.notifications SET next_attempt_at = now() WHERE status = 'PENDING'`);
+    await kit.sql(
+      `UPDATE notifications.notifications SET next_attempt_at = now() - interval '1 second' WHERE status = 'PENDING'`,
+    );
     await h.modules.notifications.deliver();
     await h.modules.notifications.deliver();
     const after = (await rows(c.userId)).filter((r) => r.channel === 'WHATSAPP');
@@ -130,7 +134,7 @@ describe('outbox from events', () => {
     const { c } = await paidBooking(4);
     for (let i = 0; i < 6; i += 1) {
       await kit.sql(
-        `UPDATE notifications.notifications SET next_attempt_at = now() WHERE status = 'PENDING'`,
+        `UPDATE notifications.notifications SET next_attempt_at = now() - interval '1 second' WHERE status = 'PENDING'`,
       );
       await failDue('transient');
       await h.modules.notifications.deliver();

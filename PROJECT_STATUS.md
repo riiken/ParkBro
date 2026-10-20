@@ -508,7 +508,7 @@ All 24 phases (0–23) are complete. A private, invite-only **staging deployment
 | 0–6: Design | Met | docs/ |
 
 ## KNOWN ISSUES
-- **No commits yet and no git remote** (branch `master`). CI can't run until there's a remote. Never `git add` ParkBro from the parent `/Users/riiken/Documents` repo.
+- Code is on GitHub (`github.com/riiken/ParkBro`, branch `main`); CI runs there. Never `git add` ParkBro from the parent `/Users/riiken/Documents` repo.
 - **Production start-up is refused by design** until a DLT-registered OTP/messaging provider, a maps geocoder and live Razorpay keys exist (launch-checklist B2–B4).
 - Locally, web (4100/4110) and admin (4102/4112) share host `127.0.0.1`, so they share a cookie jar. Cookie-to-surface isolation is enforced by the API (tested). Full origin separation comes with real subdomains.
 - The PostGIS image is amd64-only (emulated on Apple Silicon, R-49).

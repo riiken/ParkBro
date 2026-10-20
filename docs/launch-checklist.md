@@ -21,7 +21,7 @@ Owners:
 | B6 | Production secrets generated and stored in a secret manager | Eng | Open | `FIELD_ENCRYPTION_KEYS`, `BLIND_INDEX_KEY`, `SESSION_*`, Razorpay, `OPS_MONITOR_TOKEN`; never the dev values (refused at start-up) |
 | B7 | Counsel review: Terms, Privacy, DPDP notice and consent text, liability (D-027), data-request deadlines (§6.1 runbook) | Owner | Open | Bump the consent version on publish |
 | B8 | CA review: GST on fees and commission, TCS/TDS for host payouts, invoice format | Owner + Fin | Open | R-70. Ledger tax account is ready |
-| B9 | Git remote, first commit, CI green on the remote (unit, integration, e2e, audit) | Owner + Eng | Open | Nothing is committed yet. CI is defined in `.github/workflows/ci.yml` |
+| B9 | Git remote, first commit, CI green on the remote (unit, integration, e2e, audit) | Owner + Eng | In progress | Pushed to `github.com/riiken/ParkBro` (`main`); confirm the CI run is green |
 | B10 | Database roles: app role without DDL; migrations run by a separate role; read-only role for analytics | Eng | Open | database-design §12 |
 | B11 | Monitoring wired: uptime check on `/api/health/ready` and `/api/health/ops` (bearer token), log shipping, an alert on error-rate spikes, someone on call during pilot hours | Eng + Ops | Open | production-readiness §5 |
 | B12 | `PILOT_CUSTOMER_CLEARANCE=true`, `AI_PROVIDER=none` (until R-84), `MESSAGING_PROVIDER` set to the real adapter, `API_DOCS_ENABLED=false` | Eng | Open | |

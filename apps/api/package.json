@@ -1,0 +1,41 @@
+{
+  "name": "@parkbro/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=../../.env --watch src/main.ts",
+    "start": "node src/main.ts",
+    "db:migrate": "node --env-file-if-exists=../../.env src/platform/db/cli.ts migrate",
+    "db:status": "node --env-file-if-exists=../../.env src/platform/db/cli.ts status",
+    "db:new": "node src/platform/db/cli.ts new",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "build": "tsc -p tsconfig.json",
+    "admin:grant": "node --env-file-if-exists=../../.env src/cli/grant-admin.ts",
+    "db:seed": "node --env-file-if-exists=../../.env src/cli/dev-seed.ts",
+    "admin:dev-code": "node --env-file-if-exists=../../.env src/cli/dev-admin-code.ts",
+    "ai:eval": "node --env-file-if-exists=../../.env src/cli/ai-eval.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "11.1.3",
+    "@fastify/swagger": "9.9.2",
+    "@parkbro/contracts": "workspace:*",
+    "fastify": "5.12.7",
+    "fastify-type-provider-zod": "7.0.0",
+    "kysely": "0.29.7",
+    "luxon": "3.7.2",
+    "openapi-types": "12.1.3",
+    "pg": "8.23.1",
+    "pg-boss": "12.36.0",
+    "sharp": "0.35.5",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/luxon": "3.7.6",
+    "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "vitest": "5.0.5"
+  }
+}

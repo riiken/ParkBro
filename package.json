@@ -1,0 +1,40 @@
+{
+  "name": "parkbro",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.7",
+  "engines": {
+    "node": ">=24.12.0 <25"
+  },
+  "scripts": {
+    "dev:api": "pnpm --filter @parkbro/api dev",
+    "dev:web": "pnpm --filter @parkbro/web dev",
+    "dev:admin": "pnpm --filter @parkbro/admin dev",
+    "db:up": "docker compose up -d --wait postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm --filter @parkbro/api db:migrate",
+    "db:status": "pnpm --filter @parkbro/api db:status",
+    "db:new": "pnpm --filter @parkbro/api db:new",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "build": "pnpm -r build",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "e2e": "pnpm --filter @parkbro/e2e e2e",
+    "db:seed": "pnpm --filter @parkbro/api db:seed",
+    "admin:dev-code": "pnpm --filter @parkbro/api admin:dev-code",
+    "ai:eval": "pnpm --filter @parkbro/api ai:eval"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@next/eslint-plugin-next": "16.4.2",
+    "eslint": "10.13.0",
+    "eslint-plugin-boundaries": "7.2.0",
+    "globals": "17.13.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0"
+  }
+}

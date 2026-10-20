@@ -1,0 +1,126 @@
+# Render Blueprint: ParkBro STAGING (private test deployment, D-172). See docs/deployment-render.md.
+#
+# Three services + PostgreSQL, Singapore region (closest to India):
+#   parkbro-api    Fastify API + scheduled jobs; runs migrations on start; photos on a persistent disk
+#   parkbro-web    customer + host app (Next.js); reaches the API over Render's private network
+#   parkbro-admin  admin console (Next.js); separate origin and cookie
+#
+# Staging runs production builds with the simulators (fake payments, fixture place search, fixed sign-in code,
+# console messages) and is invite-only: sign-in codes go only to STAGING_ALLOWED_PHONES.
+# Values marked `sync: false` are entered in the Render dashboard when the Blueprint is created; never commit them.
+
+databases:
+  - name: parkbro-db
+    databaseName: parkbro
+    user: parkbro
+    plan: basic-256mb
+    region: singapore
+    postgresMajorVersion: '17'
+    ipAllowList: [] # no access from the internet; services connect over the private network
+
+services:
+  - type: web
+    name: parkbro-api
+    runtime: node
+    region: singapore
+    plan: starter # persistent disks need a paid plan
+    buildCommand: corepack enable pnpm && pnpm install --frozen-lockfile --prod=false
+    startCommand: node apps/api/src/platform/db/cli.ts migrate && node apps/api/src/main.ts
+    healthCheckPath: /api/health/ready
+    disk:
+      name: parkbro-media
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: '24'
+      - key: COREPACK_ENABLE_DOWNLOAD_PROMPT
+        value: '0'
+      - key: NODE_ENV
+        value: production
+      - key: STAGING
+        value: 'true'
+      - key: HOST
+        value: 0.0.0.0
+      - key: TRUST_PROXY
+        value: 'true'
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        fromDatabase:
+          name: parkbro-db
+          property: connectionString # internal URL: traffic stays on Render's private network
+      - key: DATABASE_SSL
+        value: disable # staging only; production must use TLS (env validation)
+      - key: FIELD_ENCRYPTION_KEYS
+        sync: false # v1:<base64 of 32 random bytes>  →  echo "v1:$(openssl rand -base64 32)"
+      - key: BLIND_INDEX_KEY
+        generateValue: true # 256-bit random, base64
+      - key: OPS_MONITOR_TOKEN
+        generateValue: true # bearer token for GET /api/health/ops
+      - key: STAGING_ALLOWED_PHONES
+        sync: false # comma-separated tester numbers, e.g. 98xxxxxxxx,97xxxxxxxx
+      - key: OTP_PROVIDER
+        value: dev-fixed
+      - key: OTP_DEV_FIXED_CODE
+        sync: false # a 6-digit code you share with testers (pick something other than 246810)
+      - key: PAYMENT_PROVIDER
+        value: fake
+      - key: MESSAGING_PROVIDER
+        value: console
+      - key: GEOCODER_PROVIDER
+        value: fixture
+      - key: AI_PROVIDER
+        value: none
+      - key: MEDIA_STORAGE_DIR
+        value: /var/data/media
+      - key: API_DOCS_ENABLED
+        value: 'false'
+      - key: JOBS_ENABLED
+        value: 'true'
+      - key: PILOT_CUSTOMER_CLEARANCE
+        value: 'false'
+
+  - type: web
+    name: parkbro-web
+    runtime: node
+    region: singapore
+    plan: starter
+    buildCommand: corepack enable pnpm && pnpm install --frozen-lockfile --prod=false && pnpm --filter @parkbro/web build
+    startCommand: cd apps/web && ./node_modules/.bin/next start -H 0.0.0.0 -p $PORT
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: '24'
+      - key: COREPACK_ENABLE_DOWNLOAD_PROMPT
+        value: '0'
+      - key: NODE_ENV
+        value: production
+      - key: PARKBRO_STAGING
+        value: 'true' # banner + noindex
+      - key: API_INTERNAL_HOSTPORT
+        fromService:
+          type: web
+          name: parkbro-api
+          property: hostport
+
+  - type: web
+    name: parkbro-admin
+    runtime: node
+    region: singapore
+    plan: starter
+    buildCommand: corepack enable pnpm && pnpm install --frozen-lockfile --prod=false && pnpm --filter @parkbro/admin build
+    startCommand: cd apps/admin && ./node_modules/.bin/next start -H 0.0.0.0 -p $PORT
+    healthCheckPath: /sign-in
+    envVars:
+      - key: NODE_VERSION
+        value: '24'
+      - key: COREPACK_ENABLE_DOWNLOAD_PROMPT
+        value: '0'
+      - key: NODE_ENV
+        value: production
+      - key: API_INTERNAL_HOSTPORT
+        fromService:
+          type: web
+          name: parkbro-api
+          property: hostport

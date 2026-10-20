@@ -1,0 +1,11 @@
+{
+  "name": "@parkbro/config",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./security-headers": "./src/security-headers.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

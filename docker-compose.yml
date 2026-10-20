@@ -1,0 +1,24 @@
+# Local development and integration-test database (PostgreSQL 17 + PostGIS 3.5, database-design.md).
+# The official image is amd64-only; on Apple Silicon it runs under emulation (R-49).
+services:
+  postgres:
+    image: postgis/postgis:17-3.5
+    platform: linux/amd64
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: parkbro
+    ports:
+      - '127.0.0.1:54329:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # TCP check on purpose: the image's temporary init server listens on the Unix socket only, so a
+      # socket-based pg_isready reports ready before the real server starts (Phase 6 finding).
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U postgres -d parkbro']
+      interval: 2s
+      timeout: 3s
+      retries: 60
+
+volumes:
+  pgdata:

@@ -1,0 +1,10 @@
+pnpm-lock.yaml
+node_modules
+.next
+dist
+coverage
+*.sql
+docs
+CLAUDE.md
+PHASES.md
+PROJECT_STATUS.md

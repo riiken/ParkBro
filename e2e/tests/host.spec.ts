@@ -21,7 +21,7 @@ async function saveSection(page: Page, heading: string) {
   const section = page.getByRole('region', { name: heading });
   await section.getByRole('button', { name: /^(Save|Confirm)$/ }).click();
   await expect(
-    section.getByRole('status').filter({ hasText: 'Saved' }).or(section.getByText('Confirmed.')),
+    section.getByRole('status').filter({ hasText: 'Saved' }).or(section.getByText('Confirmed.')).first(),
   ).toBeVisible();
 }
 

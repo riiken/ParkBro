@@ -10,7 +10,7 @@ async function save(page: Page, region: string) {
   const r = page.getByRole('region', { name: region });
   await r.getByRole('button', { name: /^(Save|Confirm)$/ }).click();
   await expect(
-    r.getByRole('status').filter({ hasText: 'Saved' }).or(r.getByText('Confirmed.')),
+    r.getByRole('status').filter({ hasText: 'Saved' }).or(r.getByText('Confirmed.')).first(),
   ).toBeVisible();
 }
 

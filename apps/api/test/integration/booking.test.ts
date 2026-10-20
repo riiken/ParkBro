@@ -208,8 +208,15 @@ describe('creating a booking', () => {
       customers.map((c) => quoteId(c, l.assetId, at(day, '15:00'), at(day, '16:00'))),
     );
     const results = await Promise.all(customers.map((c, i) => book(c, quotes[i] ?? '')));
-    expect(results.filter((r) => r.statusCode === 201)).toHaveLength(3);
-    expect(results.filter((r) => r.statusCode === 409)).toHaveLength(2);
+    const outcome = results.map((r) => `${r.statusCode} ${r.statusCode === 201 ? '' : r.body}`);
+    expect(
+      results.filter((r) => r.statusCode === 201),
+      outcome.join('\n'),
+    ).toHaveLength(3);
+    expect(
+      results.filter((r) => r.statusCode === 409),
+      outcome.join('\n'),
+    ).toHaveLength(2);
     const units = await sql(
       `SELECT DISTINCT unit_id FROM booking.bookings WHERE asset_id = $1 AND holds_unit`,
       [l.assetId],

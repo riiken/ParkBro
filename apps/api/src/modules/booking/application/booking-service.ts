@@ -492,6 +492,11 @@ export function createBookingService(deps: {
         if (!preview || preview.assetId !== quoteRow.assetId) throw bookingErrors.listingUnavailable();
         const property = await deps.properties.lockForBooking(preview.propertyId, trx);
         if (!property) throw bookingErrors.listingUnavailable();
+        // Space allocation is serialised per listing (D-173): concurrent inserts racing on the exclusion constraint
+        // can otherwise deadlock and fail a customer while a space is still free (found by CI under load).
+        await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`booking-alloc:${quoteRow.assetId}`}, 0))`.execute(
+          trx,
+        );
         const ctx = await deps.assets.bookingContext(quoteRow.assetId, trx);
         if (!ctx || ctx.status !== 'PUBLISHED') throw bookingErrors.listingUnavailable();
         if (!['NOT_REQUIRED', 'PARTICIPATING'].includes(property.participationStatus))
@@ -520,7 +525,10 @@ export function createBookingService(deps: {
           totalPaise: number;
         };
         let allocated: string | null = null;
-        for (const unitId of check.unitIds) {
+        const candidates = [...check.unitIds];
+        let deadlockRetries = 0;
+        while (candidates.length > 0) {
+          const unitId = candidates[0] as string;
           await sql`SAVEPOINT allocate_unit`.execute(trx);
           try {
             const seriesId = monthly
@@ -575,9 +583,17 @@ export function createBookingService(deps: {
             break;
           } catch (error) {
             await sql`ROLLBACK TO SAVEPOINT allocate_unit`.execute(trx);
+            const { code, constraint } = error as { code?: string; constraint?: string };
             // A concurrent booking took this unit between our check and insert: try the next unit (BR-08 backstop).
-            if ((error as { code?: string; constraint?: string }).constraint === 'bookings_no_overlap')
+            if (constraint === 'bookings_no_overlap') {
+              candidates.shift();
               continue;
+            }
+            // Deadlock on the exclusion check (another path inserting the same unit): retry this unit (D-173).
+            if (code === '40P01' && deadlockRetries < 3) {
+              deadlockRetries += 1;
+              continue;
+            }
             throw error;
           }
         }

@@ -49,6 +49,9 @@ jobs:
         run: pnpm db:migrate && pnpm db:status
         env:
           DATABASE_URL: postgres://postgres:postgres@127.0.0.1:54329/parkbro
+          # Public development-only keys from .env.example (refused outside development/test).
+          FIELD_ENCRYPTION_KEYS: v1:ZGV2LW9ubHktZmllbGQta2V5LW5ldmVyLXVzZS1pdCE=
+          BLIND_INDEX_KEY: ZGV2LW9ubHktYmxpbmQtaW5kZXgta2V5LW5ldmVyLXVzZSE=
       - run: pnpm build
       - name: Install Playwright Chromium
         run: pnpm --filter @parkbro/e2e exec playwright install --with-deps chromium

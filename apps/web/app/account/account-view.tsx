@@ -195,13 +195,23 @@ function NotificationPreferences() {
       .then(setPrefs)
       .catch(() => setPrefs(null));
   }, []);
+  const [prefsError, setPrefsError] = useState<string | null>(null);
   async function toggle(key: 'whatsapp' | 'sms', value: boolean) {
-    setPrefs(
-      await apiRequest<Prefs>('/api/v1/me/notification-preferences', {
-        method: 'PUT',
-        body: { [key]: value },
-      }),
-    );
+    const previous = prefs;
+    // Show the change at once; put it back if saving fails.
+    setPrefs((p) => (p ? { ...p, [key]: value } : p));
+    setPrefsError(null);
+    try {
+      setPrefs(
+        await apiRequest<Prefs>('/api/v1/me/notification-preferences', {
+          method: 'PUT',
+          body: { [key]: value },
+        }),
+      );
+    } catch (e) {
+      setPrefs(previous);
+      setPrefsError(e instanceof ApiError ? e.userMessage : 'Could not save. Try again.');
+    }
   }
   if (!prefs) return null;
   return (
@@ -223,6 +233,7 @@ function NotificationPreferences() {
       <p className="small muted">
         Urgent messages, like a customer who can&apos;t get in, are always sent by SMS.
       </p>
+      <FormError message={prefsError} />
     </section>
   );
 }

@@ -41,7 +41,16 @@ const FAULTS: Record<string, string> = {
  * C-20 EV session panel (ux §7.7). Start and stop are self-reported until a smart charger is connected (D-005);
  * the server enforces the booking window and records every step.
  */
-export function ChargingPanel({ bookingId, host = false }: { bookingId: string; host?: boolean }) {
+export function ChargingPanel({
+  bookingId,
+  host = false,
+  onChange,
+}: {
+  bookingId: string;
+  host?: boolean;
+  /** Tell the booking page something changed (a fault opens a recourse issue shown in "Get in"). */
+  onChange?: () => void;
+}) {
   const base = `/api/v1/${host ? 'host/' : ''}bookings/${encodeURIComponent(bookingId)}/charging`;
   const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +77,7 @@ export function ChargingPanel({ bookingId, host = false }: { bookingId: string; 
     try {
       setSession(await apiRequest<Session>(`${base}/${path}`, { method: 'POST', body }));
       setReporting(false);
+      onChange?.();
     } catch (e) {
       setError(e instanceof ApiError ? e.userMessage : 'Something went wrong. Try again.');
     } finally {

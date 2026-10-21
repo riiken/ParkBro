@@ -156,7 +156,7 @@ export function BookingDetail({ id }: { id: string }) {
       ) : null}
 
       {b.listing.type === 'EV_CHARGING' && ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(b.status) ? (
-        <ChargingPanel bookingId={b.id} />
+        <ChargingPanel bookingId={b.id} onChange={() => void load()} />
       ) : null}
 
       <h2>Price</h2>

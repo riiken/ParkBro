@@ -107,7 +107,7 @@ function Detail({ id }: { id: string }) {
       </ul>
 
       {['CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(b.status) && b.mode === 'CHARGING_SESSION' ? (
-        <ChargingPanel bookingId={b.id} host />
+        <ChargingPanel bookingId={b.id} host onChange={() => void load()} />
       ) : null}
 
       {['AWAITING_HOST_APPROVAL', 'PENDING_PAYMENT', 'CONFIRMED'].includes(b.status) ? (

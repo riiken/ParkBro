@@ -193,7 +193,7 @@ test('requests, cancellations, "can\'t get in", no-shows, payouts and guard link
   const link =
     (await page.getByRole('status').filter({ hasText: 'New link' }).locator('code').textContent()) ?? '';
   expect(link).toMatch(/\/gate\//);
-  const guard = await page.context().browser()!.newPage();
+  const guard = await page.context().newPage();
   await guard.goto(link);
   await guard.getByLabel('Vehicle number or 6-digit code').fill(live.vehicle.plate);
   await guard.getByRole('button', { name: 'Check' }).click();

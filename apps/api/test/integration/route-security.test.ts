@@ -43,6 +43,7 @@ const PUBLIC: Record<string, string> = {
   'GET /api/v1/listings/:listingId/reviews': 'published reviews, first name + initial only',
   'GET /api/v1/places/autocomplete': 'public localities only; rate limited',
   'GET /api/v1/places/:placeId': 'public locality point',
+  'GET /api/v1/places/area': 'locality name for a ~1 km-rounded point; rate limited',
   'GET /api/v1/media/:mediaId': 'per-item visibility check: published listing photos, else owner only',
   'GET /api/v1/access/pass/:token': 'signed, expiring, revocable driver pass; rate limited',
   'GET /api/v1/gate/:token': 'hashed 192-bit guard-link token; rate limited',

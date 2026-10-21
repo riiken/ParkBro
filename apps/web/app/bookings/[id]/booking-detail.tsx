@@ -116,7 +116,21 @@ export function BookingDetail({ id }: { id: string }) {
       {b.access ? (
         <section aria-labelledby="access-heading" className="notice">
           <h2 id="access-heading">Where to go</h2>
-          {b.access.address ? <p>{b.access.address}</p> : null}
+          {b.access.address ? (
+            <>
+              <p>{b.access.address}</p>
+              <p>
+                <a
+                  className="button secondary"
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(b.access.address)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Get directions
+                </a>
+              </p>
+            </>
+          ) : null}
           {b.access.unitLabel ? <p>Space: {b.access.unitLabel}</p> : null}
           {b.access.instructions ? <p>{b.access.instructions}</p> : null}
         </section>

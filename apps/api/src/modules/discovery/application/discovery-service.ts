@@ -253,6 +253,8 @@ export function createDiscoveryService(deps: {
       buffer_minutes: number;
       approval_required: boolean;
       distance_m: number;
+      lat: number;
+      lng: number;
       price_mode: SearchMode;
       price_unit: string;
       price_paise: string;
@@ -264,6 +266,7 @@ export function createDiscoveryService(deps: {
              l.max_vehicle_class, l.connectors, l.current_type, l.power_kw, l.min_minutes, l.max_minutes,
              l.lead_minutes, l.buffer_minutes, l.approval_required,
              ST_Distance(l.public_point, ${point}) AS distance_m,
+             ST_Y(l.public_point::geometry) AS lat, ST_X(l.public_point::geometry) AS lng,
              hp.mode AS price_mode, hp.unit AS price_unit, hp.price_paise,
              ph.id AS photo_id, ph.width AS photo_width, ph.height AS photo_height
       FROM discovery.published_listings l
@@ -304,7 +307,11 @@ export function createDiscoveryService(deps: {
         title: c.title,
         areaLabel: c.area_label,
         distanceM: roundDistance(c.distance_m),
-        location: locationPrecision(c.property_kind),
+        location: {
+          latitude: roundCoordinate(c.lat),
+          longitude: roundCoordinate(c.lng),
+          ...locationPrecision(c.property_kind),
+        },
         price: { mode: c.price_mode, unit: c.price_unit, pricePaise: Number(c.price_paise) },
         photo: c.photo_id
           ? { url: `/api/v1/media/${c.photo_id}`, width: c.photo_width ?? 0, height: c.photo_height ?? 0 }

@@ -406,3 +406,23 @@ describe('rate limiting, places and query plans', () => {
     }
   });
 });
+
+describe('maps (D-174)', () => {
+  it('search results carry the public point rounded to ~110 m, never the exact one', async () => {
+    const results = (await search({ type: 'PARKING' })).json().results as {
+      location: { latitude: number; longitude: number; precision: string };
+    }[];
+    expect(results.length).toBeGreaterThan(0);
+    for (const r of results) {
+      expect(Math.round(r.location.latitude * 1000) / 1000).toBe(r.location.latitude);
+      expect(Math.round(r.location.longitude * 1000) / 1000).toBe(r.location.longitude);
+      expect(r.location.latitude).not.toBe(O.latitude);
+    }
+  });
+
+  it('names the locality around a point (for a property’s public area label)', async () => {
+    const res = await h.get(`/api/v1/places/area?lat=${O.latitude}&lng=${O.longitude}`);
+    expect(res.json()).toEqual({ areaLabel: 'Koramangala' });
+    expect((await h.get('/api/v1/places/area?lat=95&lng=77')).statusCode).toBe(400);
+  });
+});

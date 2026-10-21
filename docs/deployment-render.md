@@ -8,7 +8,7 @@ Staging runs real production builds with the simulators instead of external prov
 | --- | --- |
 | Sign-in | Fixed 6-digit code (`OTP_DEV_FIXED_CODE`), only for numbers in `STAGING_ALLOWED_PHONES` |
 | Payments | Built-in simulator; no real money |
-| Place search | 15 Bengaluru localities (fixture) |
+| Place search and maps | OpenStreetMap: Photon search and OpenFreeMap tiles (no key, D-174) |
 | Messages | Written to the API log (redacted), plus the in-app inbox |
 | AI search | Rules parser (no model) |
 | Search engines | `noindex` on web and admin; a "Test environment" banner on web |
@@ -84,7 +84,7 @@ Each external piece replaces a simulator. The API then lets you turn `STAGING` o
 | --- | --- |
 | SMS/WhatsApp provider registered | Add its adapter; set `OTP_PROVIDER` and `MESSAGING_PROVIDER`; remove `OTP_DEV_FIXED_CODE` |
 | Razorpay live | `PAYMENT_PROVIDER=razorpay` with live keys; set the webhook URL to `https://<web-url>/api/v1/webhooks/payments/razorpay` |
-| Maps vendor | Geocoder adapter; `GEOCODER_PROVIDER` |
+| Maps | Already live with OpenStreetMap (D-174); optionally switch to a paid provider later |
 | Database TLS | `DATABASE_SSL=no-verify` (or `require`). Production refuses `disable` |
 | Domains | Custom domains for web and admin (separate subdomains, for example `admin.`) |
 | Go live | `STAGING=false`, remove `STAGING_ALLOWED_PHONES`, and set `PILOT_CUSTOMER_CLEARANCE=true` for the controlled pilot |

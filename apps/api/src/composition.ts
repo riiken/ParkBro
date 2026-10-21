@@ -42,6 +42,7 @@ import { createUsersModule } from './modules/users/index.ts';
 import type { Env } from './platform/config/env.ts';
 import { createDomainEventBus } from './platform/events/domain-events.ts';
 import { fixtureGeocoder, type Geocoder } from './platform/providers/geocoding.ts';
+import { photonGeocoder } from './platform/providers/photon.ts';
 import { localDiskStorage, type ObjectStorage } from './platform/providers/object-storage.ts';
 import type { ScheduledJob } from './platform/jobs/job-runner.ts';
 import type { OtpSender } from './platform/providers/otp.ts';
@@ -140,7 +141,7 @@ export function createModules<DB>(
     ...(overrides.now ? { now: overrides.now } : {}),
   });
 
-  const geocoder = overrides.geocoder ?? fixtureGeocoder();
+  const geocoder = overrides.geocoder ?? geocoderFromEnv(env);
   const discovery = createDiscoveryModule({
     db,
     geocoder,
@@ -336,6 +337,18 @@ export function createModules<DB>(
       }),
     ],
   };
+}
+
+function geocoderFromEnv(env: Env): Geocoder {
+  if (env.GEOCODER_PROVIDER !== 'photon') return fixtureGeocoder();
+  const [latitude, longitude] = env.GEOCODER_BIAS.split(',').map(Number) as [number, number];
+  return photonGeocoder({
+    baseUrl: env.PHOTON_URL,
+    bias: { latitude, longitude },
+    bbox: env.GEOCODER_BBOX.split(',').map(Number) as [number, number, number, number],
+    userAgent: 'ParkBro/1.0 (https://parkbro.pathly.in)',
+    fallback: fixtureGeocoder(),
+  });
 }
 
 function llmFromEnv(env: Env): LlmProvider | null {

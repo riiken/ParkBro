@@ -69,7 +69,7 @@ services:
       - key: MESSAGING_PROVIDER
         value: console
       - key: GEOCODER_PROVIDER
-        value: fixture
+        value: photon # OpenStreetMap place search, no key (D-174)
       - key: AI_PROVIDER
         value: none
       - key: MEDIA_STORAGE_DIR

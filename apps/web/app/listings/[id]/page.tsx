@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { MapView } from '../../../components/map-view';
 import { notFound } from 'next/navigation';
 import {
   CONNECTOR_LABEL,
@@ -211,6 +212,21 @@ export default async function ListingPage({
               </ul>
             </>
           ) : null}
+
+          <h2>Where it is</h2>
+          <MapView
+            label={`Map: ${listing.areaLabel}`}
+            center={{ latitude: listing.location.latitude, longitude: listing.location.longitude }}
+            zoom={listing.location.precision === 'AREA' ? 14 : 16}
+            {...(listing.location.precision === 'AREA'
+              ? { area: { radiusM: listing.location.radiusM } }
+              : {})}
+          />
+          <p className="small muted map-caption">
+            {listing.location.precision === 'AREA'
+              ? `Somewhere in the shaded area in ${listing.areaLabel}. You get the exact address and directions once you book.`
+              : `${listing.areaLabel}. Exact entry details after you book.`}
+          </p>
 
           <h2>When it&apos;s available</h2>
           <ul className="facts">

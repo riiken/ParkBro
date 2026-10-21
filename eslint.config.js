@@ -11,6 +11,7 @@ const API_SRC = 'apps/api/src';
 export default tseslint.config(
   {
     ignores: [
+      'apps/web/public/vendor/**',
       '**/node_modules/**',
       '**/.next/**',
       '**/dist/**',

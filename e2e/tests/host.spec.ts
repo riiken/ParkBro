@@ -59,7 +59,8 @@ test('a host lists a space, gets it approved, receives a monthly request, approv
     .getByRole('button', { name: /Koramangala/ })
     .first()
     .click();
-  await expect(page.getByText('Location set to the area centre.')).toBeVisible();
+  await expect(page.getByText('Showing the area. Drag the pin onto your exact spot.')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Place your space on the map' })).toBeVisible();
   await page.getByLabel('Listing title').fill(title);
   await page.getByRole('button', { name: 'Create draft' }).click();
   await expect(page.getByRole('heading', { name: title })).toBeVisible();

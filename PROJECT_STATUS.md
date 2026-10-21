@@ -514,7 +514,7 @@ All 24 phases (0–23) are complete. A private, invite-only **staging deployment
 - The PostGIS image is amd64-only (emulated on Apple Silicon, R-49).
 - Terms and Privacy pages are drafts pending legal review (consent version `pilot-2026-10`).
 - Payments run on the simulator until Razorpay keys exist; the adapter is untested against the live sandbox (R-68).
-- No map in the UI and no map pin for property placement (AR-3, R-63). Place search covers 15 Bengaluru localities (R-59).
+- Maps run on free OpenStreetMap services (Photon search, OpenFreeMap tiles; D-174, R-90). Fine for the pilot; self-host or move to a paid provider as traffic grows.
 - ID and vehicle RC verification are manual (pilot clearance) until KYC providers are chosen (R-62, R-72).
 
 ## TECHNICAL DEBT

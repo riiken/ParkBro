@@ -1,7 +1,7 @@
 /**
  * Place search for "where do you need parking?" (architecture.md §5 MapsProvider). Only public places (localities,
  * landmarks) are geocoded; host properties are never sent to or resolved by a maps provider.
- * Pilot: a fixture of Bengaluru localities until the maps vendor and keys are decided (AR-3).
+ * Providers: a fixture of Bengaluru localities (tests, offline) and Photon over OpenStreetMap (D-174).
  */
 export interface PlacePrediction {
   placeId: string;
@@ -20,6 +20,11 @@ export interface Geocoder {
   readonly name: string;
   autocomplete(query: string): Promise<PlacePrediction[]>;
   details(placeId: string): Promise<PlaceDetails | null>;
+  /**
+   * Locality name (never a street or building) around a point, for a property's public area label. Callers pass a
+   * point rounded to ~110 m, no finer than the public point every listing already shows (D-174).
+   */
+  areaAt(latitude: number, longitude: number, withinKm?: number): Promise<string | null>;
 }
 
 // Public locality centroids (approximate), Bengaluru pilot.
@@ -61,5 +66,28 @@ export function fixtureGeocoder(): Geocoder {
     async details(placeId) {
       return places.find((p) => p.placeId === placeId) ?? null;
     },
+    async areaAt(latitude, longitude, withinKm = 4) {
+      const nearest = places
+        .map((p) => ({ p, d: distanceKm(latitude, longitude, p.latitude, p.longitude) }))
+        .sort((a, b) => a.d - b.d)[0];
+      return nearest && nearest.d <= withinKm ? nearest.p.name : null;
+    },
   };
 }
+
+function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLng = (lng2 - lng1) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2;
+  return 12_742 * Math.asin(Math.sqrt(h));
+}
+
+/** Round to ~110 m (3 decimals) before a point leaves the platform for an area lookup (D-174). */
+export const coarsePoint = (latitude: number, longitude: number) => ({
+  latitude: Math.round(latitude * 1000) / 1000,
+  longitude: Math.round(longitude * 1000) / 1000,
+});
+
+/** Known pilot locality names, used to tidy OpenStreetMap's variants ("Kormangala West" → "Koramangala"). */
+export const KNOWN_LOCALITIES = BENGALURU.map(([, name]) => name);

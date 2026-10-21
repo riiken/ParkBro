@@ -57,7 +57,18 @@ const envSchema = z
     // Local-disk object storage root for photos (dev/pilot); S3-compatible storage before staging (AR-1).
     MEDIA_STORAGE_DIR: z.string().min(1).default('.data/media'),
     // Place search provider. Only the Bengaluru fixture exists until the maps vendor is chosen (AR-3).
-    GEOCODER_PROVIDER: z.enum(['fixture']).default('fixture'),
+    GEOCODER_PROVIDER: z.enum(['fixture', 'photon']).default('fixture'),
+    // Photon (OpenStreetMap) place search (D-174): the public instance for the pilot; self-host when volume grows.
+    PHOTON_URL: z.url().default('https://photon.komoot.io'),
+    // Pilot city (Bengaluru): search bias "lat,lng" and bounding box "minLon,minLat,maxLon,maxLat".
+    GEOCODER_BIAS: z
+      .string()
+      .regex(/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/)
+      .default('12.9716,77.5946'),
+    GEOCODER_BBOX: z
+      .string()
+      .regex(/^(-?\d+(\.\d+)?,){3}-?\d+(\.\d+)?$/)
+      .default('77.30,12.70,77.95,13.30'),
     // Operational tuning (trust-and-safety §5). Raise for NAT-heavy networks or automated test environments.
     OTP_SEND_LIMIT_PER_IP_PER_HOUR: z.coerce.number().int().min(1).max(100_000).default(20),
     OTP_VERIFY_LIMIT_PER_IP_PER_HOUR: z.coerce.number().int().min(1).max(100_000).default(60),
@@ -112,11 +123,13 @@ const envSchema = z
           path: ['OTP_PROVIDER'],
           message: 'no production OTP provider exists yet (DLT-registered SMS/WhatsApp, Phase 18)',
         });
-        ctx.addIssue({
-          code: 'custom',
-          path: ['GEOCODER_PROVIDER'],
-          message: 'the fixture geocoder is for development only; configure a maps provider (AR-3)',
-        });
+        if (env.GEOCODER_PROVIDER === 'fixture') {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['GEOCODER_PROVIDER'],
+            message: 'the fixture geocoder is for development only; use photon (D-174)',
+          });
+        }
       }
     }
     if (env.STAGING && !env.STAGING_ALLOWED_PHONES) {
@@ -229,6 +242,7 @@ export function describeEnv(env: Env): Record<string, unknown> {
     AI_MODEL: env.AI_MODEL,
     OPS_MONITOR_ENABLED: env.OPS_MONITOR_TOKEN !== undefined,
     STAGING: env.STAGING,
+    GEOCODER_PROVIDER: env.GEOCODER_PROVIDER,
     DATABASE_SSL: env.DATABASE_SSL,
     PILOT_CUSTOMER_CLEARANCE: env.PILOT_CUSTOMER_CLEARANCE,
   };

@@ -61,6 +61,9 @@ test('a customer finds a nearby listing and views it without seeing the exact ad
   await expect(page.getByRole('img', { name: `Photo of ${title}` })).toBeVisible();
   await expect(page.getByText('₹3,000/month')).toBeVisible();
   await expect(page.getByText('Hosted by Meera')).toBeVisible();
+  // The map shows only the approximate area (D-174); the caption says so.
+  await expect(page.getByRole('region', { name: 'Map: Koramangala' })).toBeVisible();
+  await expect(page.getByText(/Somewhere in the shaded area in Koramangala/)).toBeVisible();
   await expect(page.getByRole('link', { name: 'Sign in to book' })).toBeVisible();
 
   // A hard load (server-rendered HTML) must also satisfy the CSP, not only client navigation.

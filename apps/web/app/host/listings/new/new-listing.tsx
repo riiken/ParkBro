@@ -2,7 +2,8 @@
 
 import { ApiError, apiRequest } from '@parkbro/web-kit';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, type FormEvent } from 'react';
+import { MapView } from '../../../../components/map-view';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Field, FormError } from '../../../../components/field';
 import { HostGate } from '../../../../components/host-gate';
 import type { HostAsset, HostProperty } from '../../../../lib/host';
@@ -41,7 +42,17 @@ function Create() {
   const [properties, setProperties] = useState<HostProperty[] | null>(null);
   const [propertyId, setPropertyId] = useState<string>('new');
   const [point, setPoint] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [pointSource, setPointSource] = useState<'device' | 'area' | null>(null);
+  const [pointSource, setPointSource] = useState<'device' | 'area' | 'pin' | null>(null);
+  // The public area label follows the pin unless the host typed their own (D-174).
+  const [areaTouched, setAreaTouched] = useState(false);
+  // Where the map is centred: moves when the host picks an area or uses their location, not while dragging.
+  const filledByApp = useRef(false);
+  const fillArea = (label: string) => {
+    filledByApp.current = true;
+    setAreaLabel(label);
+    setQuery(label);
+  };
+  const [mapCenter, setMapCenter] = useState<{ latitude: number; longitude: number } | null>(null);
   const [query, setQuery] = useState('');
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [areaLabel, setAreaLabel] = useState('');
@@ -59,6 +70,11 @@ function Create() {
   }, []);
 
   useEffect(() => {
+    // Filled in by us (a chosen suggestion or the pin's locality), not typed: don't reopen the list.
+    if (filledByApp.current) {
+      filledByApp.current = false;
+      return setPredictions([]);
+    }
     if (query.trim().length < 2) return setPredictions([]);
     const t = setTimeout(() => {
       apiRequest<Prediction[]>(`/api/v1/places/autocomplete?q=${encodeURIComponent(query.trim())}`)
@@ -70,13 +86,37 @@ function Create() {
 
   async function chooseArea(p: Prediction) {
     const place = await apiRequest<Place>(`/api/v1/places/${encodeURIComponent(p.placeId)}`);
-    setAreaLabel(p.primaryText);
-    setQuery(p.primaryText);
     setPredictions([]);
-    if (pointSource !== 'device') {
-      setPoint({ latitude: place.latitude, longitude: place.longitude });
+    setAreaTouched(false);
+    if (pointSource !== 'device' && pointSource !== 'pin') {
+      const p = { latitude: place.latitude, longitude: place.longitude };
+      setPoint(p);
+      setMapCenter(p);
       setPointSource('area');
+      fillArea(place.name);
+      void suggestArea(p, true); // a landmark ("Forum Mall") becomes its locality ("Koramangala")
+    } else {
+      fillArea(p.primaryText);
     }
+  }
+
+  /** Locality for a point (server rounds it to ~1 km before asking the map provider). */
+  async function suggestArea(p: { latitude: number; longitude: number }, force = false) {
+    if (areaTouched && !force) return;
+    try {
+      const { areaLabel: label } = await apiRequest<{ areaLabel: string | null }>(
+        `/api/v1/places/area?lat=${p.latitude}&lng=${p.longitude}`,
+      );
+      if (label) fillArea(label);
+    } catch {
+      // The host can still type the area.
+    }
+  }
+
+  function movePin(p: { latitude: number; longitude: number }) {
+    setPoint(p);
+    setPointSource('pin');
+    void suggestArea(p);
   }
 
   function useDevice() {
@@ -85,8 +125,11 @@ function Create() {
       return setError("This browser can't share your location. Pick your area instead.");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setPoint({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        const p = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+        setPoint(p);
+        setMapCenter(p);
         setPointSource('device');
+        void suggestArea(p);
       },
       () => setError("We couldn't get your location. Pick your area instead."),
       { enableHighAccuracy: true, timeout: 10_000 },
@@ -201,7 +244,7 @@ function Create() {
               autoComplete="off"
               placeholder="e.g. Koramangala"
               value={query}
-              onChange={(e) => (setQuery(e.target.value), setAreaLabel(e.target.value))}
+              onChange={(e) => (setQuery(e.target.value), setAreaLabel(e.target.value), setAreaTouched(true))}
             />
             {predictions.length ? (
               <ul id="area-options" className="options" role="listbox">
@@ -224,10 +267,27 @@ function Create() {
             <button type="button" className="secondary" onClick={useDevice}>
               Use my current location
             </button>
-            {point ? (
-              <p className="small success" role="status">
-                Location set {pointSource === 'device' ? 'from your device' : 'to the area centre'}.
-              </p>
+            {point && mapCenter ? (
+              <>
+                <p className="small success" role="status">
+                  {pointSource === 'device'
+                    ? 'Location set from your device.'
+                    : pointSource === 'pin'
+                      ? 'Pin placed.'
+                      : 'Showing the area. Drag the pin onto your exact spot.'}
+                </p>
+                <MapView
+                  label="Place your space on the map"
+                  center={mapCenter}
+                  zoom={pointSource === 'area' ? 15 : 17}
+                  picker={{ onChange: movePin }}
+                  className="tall"
+                />
+                <p className="small muted map-caption">
+                  Drag the pin or tap the map. Only you and customers with a confirmed booking see this spot;
+                  everyone else sees an approximate area.
+                </p>
+              </>
             ) : null}
           </div>
         </>

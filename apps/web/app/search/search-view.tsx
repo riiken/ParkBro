@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { FormError } from '../../components/field';
 import { SearchIcon } from '../../components/icons';
+import { MapView } from '../../components/map-view';
 import { CONNECTOR_LABEL, MODE_LABEL, VEHICLE_LABEL, formatDistance, formatPrice } from '../../lib/format';
 
 interface Place {
@@ -23,6 +24,7 @@ interface Result {
   title: string;
   areaLabel: string;
   distanceM: number;
+  location: { latitude: number; longitude: number; precision: 'AREA' | 'PIN'; radiusM: number };
   price: { mode: string; unit: string; pricePaise: number };
   photo: { url: string; width: number; height: number } | null;
   covered: boolean;
@@ -592,6 +594,20 @@ export function SearchView() {
               </strong>{' '}
               <span className="muted">near {place?.name ?? 'you'}</span>
             </p>
+            {place ? (
+              <MapView
+                label="Map of results"
+                center={{ latitude: place.latitude, longitude: place.longitude }}
+                points={results.map((r) => ({
+                  id: r.id,
+                  latitude: r.location.latitude,
+                  longitude: r.location.longitude,
+                  label: formatPrice(r.price.pricePaise, r.price.unit),
+                  href: listingHref(r.id),
+                }))}
+                className="results-map"
+              />
+            ) : null}
             <ul className="cards">
               {results.map((r) => (
                 <li key={r.id} className="card">

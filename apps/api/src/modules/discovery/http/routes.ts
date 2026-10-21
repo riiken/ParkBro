@@ -9,7 +9,7 @@ export type DiscoverySignal = <T extends 'discovery.searched' | 'discovery.listi
 ) => Promise<void>;
 import type { KeyedHasher } from '../../../platform/crypto/keyed-hash.ts';
 import { errors } from '../../../platform/errors/domain-error.ts';
-import type { Geocoder } from '../../../platform/providers/geocoding.ts';
+import { coarsePoint, type Geocoder } from '../../../platform/providers/geocoding.ts';
 import type { RateLimiter } from '../../../platform/rate-limit/rate-limiter.ts';
 import type { DiscoveryService } from '../application/discovery-service.ts';
 import { VEHICLE_ORDER } from '../domain/presentation.ts';
@@ -36,7 +36,13 @@ const searchResult = z.object({
   title: z.string(),
   areaLabel: z.string(),
   distanceM: z.number().int(),
-  location: z.object({ precision: z.enum(['AREA', 'PIN']), radiusM: z.number() }),
+  // Public (fuzzed, ~110 m-rounded) point, the same one the listing page shows (D-075, D-174).
+  location: z.object({
+    latitude: z.number(),
+    longitude: z.number(),
+    precision: z.enum(['AREA', 'PIN']),
+    radiusM: z.number(),
+  }),
   price: z.object({ mode: z.string(), unit: z.string(), pricePaise: z.number().int() }),
   photo: z.object({ url: z.string(), width: z.number().int(), height: z.number().int() }).nullable(),
   covered: z.boolean(),
@@ -254,6 +260,23 @@ export const discoveryRoutes: FastifyPluginAsync<{
     async (request) => {
       await limit(request, 'places', 120);
       return geocoder.autocomplete(request.query.q);
+    },
+  );
+
+  r.get(
+    '/v1/places/area',
+    {
+      schema: {
+        tags: ['discovery'],
+        querystring: z.object({ lat, lng }),
+        response: { 200: z.object({ areaLabel: z.string().nullable() }) },
+      },
+    },
+    async (request) => {
+      await limit(request, 'places', 120);
+      // Only a ~1 km point leaves the platform (D-174): enough to name the locality, never the spot.
+      const p = coarsePoint(request.query.lat, request.query.lng);
+      return { areaLabel: await geocoder.areaAt(p.latitude, p.longitude) };
     },
   );
 

@@ -21,10 +21,14 @@ export function securityHeaders(options: { isDev: boolean; noIndex?: boolean }) 
  * nonce'd framework scripts load their chunks. Development additionally needs 'unsafe-eval' (React debugging)
  * and websocket connections (hot reload).
  */
+export const MAP_TILES_ORIGIN = 'https://tiles.openfreemap.org';
+
 export function contentSecurityPolicy(options: {
   nonce: string;
   isDev: boolean;
   paymentCheckout?: boolean;
+  /** Map tiles, sprites and fonts (OpenFreeMap, D-174) and MapLibre's worker from our own origin. */
+  maps?: boolean;
 }): string {
   const { nonce, isDev } = options;
   // Customer web only: the payment provider's checkout runs in its own iframe (D-122). checkout.js itself is loaded
@@ -36,9 +40,11 @@ export function contentSecurityPolicy(options: {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ''}`,
     `style-src 'self' 'nonce-${nonce}'`,
-    "img-src 'self' blob: data:",
+    `img-src 'self' blob: data:${options.maps ? ` ${MAP_TILES_ORIGIN}` : ''}`,
     "font-src 'self'",
-    `connect-src 'self'${isDev ? ' ws:' : ''}`,
+    `connect-src 'self'${options.maps ? ` ${MAP_TILES_ORIGIN}` : ''}${isDev ? ' ws:' : ''}`,
+    // With 'strict-dynamic' a worker would fall back to script-src and lose 'self'; allow our own worker files.
+    ...(options.maps ? ["worker-src 'self' blob:"] : []),
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

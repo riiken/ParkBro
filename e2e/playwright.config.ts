@@ -33,7 +33,8 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
-    { name: 'mobile-chrome', use: { ...devices['Pixel 7'] } },
+    // Functional audits (audit-*.spec.ts) run once, on desktop; journeys run on both.
+    { name: 'mobile-chrome', use: { ...devices['Pixel 7'] }, testIgnore: /audit-.*\.spec\.ts/ },
     { name: 'desktop-chrome', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: [
@@ -41,7 +42,7 @@ export default defineConfig({
       command: `node scripts/prepare-db.ts && node ../apps/api/src/platform/db/cli.ts migrate && node ../apps/api/src/main.ts`,
       url: `http://127.0.0.1:${API_PORT}/api/health/ready`,
       env: apiEnv,
-      reuseExistingServer: false,
+      reuseExistingServer: !!process.env.PW_REUSE,
       timeout: 120_000,
     },
     {
@@ -49,14 +50,14 @@ export default defineConfig({
       command: `pnpm --filter @parkbro/web build && pnpm --filter @parkbro/web exec next start --port ${WEB_PORT}`,
       url: `http://127.0.0.1:${WEB_PORT}/`,
       env: { API_INTERNAL_URL: `http://127.0.0.1:${API_PORT}`, NEXT_TELEMETRY_DISABLED: '1' },
-      reuseExistingServer: false,
+      reuseExistingServer: !!process.env.PW_REUSE,
       timeout: 300_000,
     },
     {
       command: `pnpm --filter @parkbro/admin build && pnpm --filter @parkbro/admin exec next start --port ${ADMIN_PORT}`,
       url: `http://127.0.0.1:${ADMIN_PORT}/sign-in`,
       env: { API_INTERNAL_URL: `http://127.0.0.1:${API_PORT}`, NEXT_TELEMETRY_DISABLED: '1' },
-      reuseExistingServer: false,
+      reuseExistingServer: !!process.env.PW_REUSE,
       timeout: 300_000,
     },
   ],

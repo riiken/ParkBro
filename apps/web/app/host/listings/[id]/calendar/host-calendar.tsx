@@ -83,8 +83,9 @@ function Cal({ id, canWrite }: { id: string; canWrite: boolean }) {
           reason: String(f.get('reason') ?? '').trim() || null,
         },
       });
-      setDay(date);
-      await load();
+      // Show the blocked day: changing the day reloads it; same day, reload now.
+      if (date === day) await load();
+      else setDay(date);
     } catch (e) {
       setFormError(e instanceof ApiError ? e.userMessage : 'Could not block that time.');
     } finally {

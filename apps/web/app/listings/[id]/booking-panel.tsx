@@ -5,16 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { FormError } from '../../../components/field';
+import { VehicleForm, type Vehicle } from '../../../components/vehicle-form';
 import { addDays, addMonthsClamped, formatRupees, localToIso, todayLocal } from '../../../lib/booking';
 import { CONNECTOR_LABEL, MODE_LABEL, VEHICLE_LABEL } from '../../../lib/format';
 
-interface Vehicle {
-  id: string;
-  plate: string;
-  vehicleClass: string;
-  isEv: boolean;
-  nickname: string | null;
-}
 interface Quote {
   quoteId: string;
   lines: { label: string; amountPaise: number }[];
@@ -44,16 +38,21 @@ const isTime = (v: string | undefined) => !!v && /^([01]\d|2[0-3]):[0-5]\d$/.tes
  * bookable here. The price and availability come from the server quote and are re-checked when reserving; nothing
  * here is trusted (CLAUDE.md §13, §25).
  */
+const SIZE_ORDER = ['HATCHBACK', 'SEDAN', 'SUV', 'MUV'];
+
 export function BookingPanel({
   assetId,
   rates,
   isCharger,
+  fits,
   defaults = {},
   searchHref,
 }: {
   assetId: string;
   rates: PanelRate[];
   isCharger: boolean;
+  /** What the space takes, to warn before pricing (the server checks again when booking). */
+  fits?: { maxVehicleClass: string; connectors: string[] | null };
   defaults?: PanelDefaults;
   searchHref: string;
 }) {
@@ -98,30 +97,6 @@ export function BookingPanel({
 
   const overnight = rates.find((r) => r.mode === 'OVERNIGHT');
   const reset = () => (setQuote(null), setUnavailable(false));
-
-  async function onAddVehicle(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    setBusy(true);
-    setError(null);
-    try {
-      const isEv = form.get('isEv') === 'on';
-      await apiRequest('/api/v1/me/vehicles', {
-        method: 'POST',
-        body: {
-          plate: String(form.get('plate') ?? ''),
-          vehicleClass: String(form.get('vehicleClass') ?? 'HATCHBACK'),
-          isEv,
-          connectors: isEv ? [String(form.get('connector') ?? 'TYPE2')] : [],
-        },
-      });
-      await loadVehicles();
-    } catch (e) {
-      setError(e instanceof ApiError ? e.userMessage : 'Could not add the vehicle.');
-    } finally {
-      setBusy(false);
-    }
-  }
 
   /** The window for the chosen mode, in the pilot zone (BR-13 shapes; the server validates them again). */
   function windowFrom(form: FormData): { start: string; end: string } {
@@ -188,54 +163,31 @@ export function BookingPanel({
 
   if (addingVehicle) {
     return (
-      <form onSubmit={onAddVehicle} noValidate aria-label="Add your vehicle">
-        <h3>Add your vehicle</h3>
-        <p className="small muted">Hosts and guards see your number plate during the booking.</p>
-        <div className="field">
-          <label htmlFor="plate">Registration number</label>
-          <input
-            id="plate"
-            name="plate"
-            placeholder="KA 01 AB 1234"
-            autoCapitalize="characters"
-            required
-            maxLength={20}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="vehicleClass">Vehicle type</label>
-          <select id="vehicleClass" name="vehicleClass" defaultValue="HATCHBACK">
-            {Object.entries(VEHICLE_LABEL).map(([v, label]) => (
-              <option key={v} value={v}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <label className="check">
-          <input type="checkbox" name="isEv" defaultChecked={isCharger} /> Electric vehicle
-        </label>
-        {isCharger ? (
-          <div className="field">
-            <label htmlFor="connector">Charging connector</label>
-            <select id="connector" name="connector" defaultValue="TYPE2">
-              {Object.entries(CONNECTOR_LABEL).map(([v, label]) => (
-                <option key={v} value={v}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
-        <FormError message={error} />
-        <button type="submit" disabled={busy}>
-          {busy ? 'Saving…' : 'Save vehicle'}
-        </button>
-      </form>
+      <VehicleForm
+        evByDefault={isCharger}
+        onSaved={(v) => {
+          setVehicleId(v.id);
+          void loadVehicles().then(() => setAddingVehicle(false));
+        }}
+        {...(vehicles && vehicles.length > 0 ? { onCancel: () => setAddingVehicle(false) } : {})}
+      />
     );
   }
 
   const vehicle = vehicles?.find((v) => v.id === vehicleId) ?? vehicles?.[0];
+  /** Why this vehicle can't use the space, if it can't (size or charging connector). */
+  const misfit = (v: Vehicle): string | null => {
+    if (!fits) return null;
+    if (SIZE_ORDER.indexOf(v.vehicleClass) > SIZE_ORDER.indexOf(fits.maxVehicleClass)) {
+      return `Your ${VEHICLE_LABEL[v.vehicleClass] ?? v.vehicleClass} (${v.plate}) is too big: this space fits up to a ${(VEHICLE_LABEL[fits.maxVehicleClass] ?? fits.maxVehicleClass).toLowerCase()}. Choose or add a smaller vehicle.`;
+    }
+    if (isCharger && fits.connectors) {
+      if (!v.isEv) return `${v.plate} isn't an electric vehicle. Choose or add your EV to charge here.`;
+      if (!v.connectors.some((c) => fits.connectors?.includes(c)))
+        return `${v.plate} doesn't take this charger's connector (${fits.connectors.map((c) => CONNECTOR_LABEL[c] ?? c).join(', ')}).`;
+    }
+    return null;
+  };
   const today = todayLocal();
   const defaultDate = isDate(defaults.date) && (defaults.date ?? '') >= today ? defaults.date : today;
   return (
@@ -349,8 +301,25 @@ export function BookingPanel({
             </select>
           </div>
         ) : null}
+        {vehicle && misfit(vehicle) ? (
+          <p className="form-error" role="alert">
+            {misfit(vehicle)}
+          </p>
+        ) : null}
+        {vehicle ? (
+          <p className="small muted">
+            Booking for {vehicle.plate}
+            {vehicle.isEv
+              ? ` · EV (${vehicle.connectors.map((c) => CONNECTOR_LABEL[c] ?? c).join(', ')})`
+              : ''}{' '}
+            ·{' '}
+            <button type="button" className="link" onClick={() => (reset(), setAddingVehicle(true))}>
+              Add another vehicle
+            </button>
+          </p>
+        ) : null}
         {quote ? null : (
-          <button type="submit" disabled={busy}>
+          <button type="submit" disabled={busy || Boolean(vehicle && misfit(vehicle))}>
             {busy ? 'Checking…' : 'Check price'}
           </button>
         )}

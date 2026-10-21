@@ -4,6 +4,8 @@ import { ApiError, apiRequest } from '@parkbro/web-kit';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Field, FormError } from '../../components/field';
+import { VehicleForm, type Vehicle } from '../../components/vehicle-form';
+import { CONNECTOR_LABEL, VEHICLE_LABEL } from '../../lib/format';
 
 interface Profile {
   id: string;
@@ -148,6 +150,8 @@ export function AccountView() {
           {busy ? 'Saving…' : 'Save changes'}
         </button>
       </form>
+
+      <Vehicles />
 
       <NotificationPreferences />
 
@@ -329,6 +333,78 @@ function YourData() {
           ))}
         </ul>
       ) : null}
+    </section>
+  );
+}
+
+/** Your vehicles: the plates hosts and guards see, and the connectors chargers are matched against. */
+function Vehicles() {
+  const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(() => {
+    apiRequest<Vehicle[]>('/api/v1/me/vehicles')
+      .then(setVehicles)
+      .catch(() => setVehicles(null));
+  }, []);
+  useEffect(load, [load]);
+
+  async function remove(id: string) {
+    setError(null);
+    try {
+      await apiRequest(`/api/v1/me/vehicles/${id}`, { method: 'DELETE' });
+      setConfirming(null);
+      load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.userMessage : 'Could not remove the vehicle.');
+    }
+  }
+
+  if (!vehicles) return null;
+  return (
+    <section aria-labelledby="vehicles-heading">
+      <h2 id="vehicles-heading">Your vehicles</h2>
+      {vehicles.length === 0 ? <p className="muted">No vehicles yet. Add one to book.</p> : null}
+      {vehicles.length > 0 ? (
+        <ul className="list">
+          {vehicles.map((v) => (
+            <li key={v.id}>
+              <span>
+                <strong>{v.plate}</strong>
+                {v.nickname ? ` · ${v.nickname}` : ''}
+                <br />
+                <span className="muted small">
+                  {VEHICLE_LABEL[v.vehicleClass] ?? v.vehicleClass}
+                  {v.isEv ? ` · EV · ${v.connectors.map((c) => CONNECTOR_LABEL[c] ?? c).join(', ')}` : ''}
+                </span>
+              </span>
+              {confirming === v.id ? (
+                <span className="row-start">
+                  <button type="button" className="danger" onClick={() => void remove(v.id)}>
+                    Remove {v.plate}
+                  </button>
+                  <button type="button" className="link" onClick={() => setConfirming(null)}>
+                    Keep
+                  </button>
+                </span>
+              ) : (
+                <button type="button" className="link" onClick={() => setConfirming(v.id)}>
+                  Remove
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <FormError message={error} />
+      {adding ? (
+        <VehicleForm onSaved={() => (setAdding(false), load())} onCancel={() => setAdding(false)} />
+      ) : (
+        <button type="button" className="secondary" onClick={() => setAdding(true)}>
+          Add a vehicle
+        </button>
+      )}
     </section>
   );
 }

@@ -301,6 +301,10 @@ export default async function ListingPage({
             assetId={listing.id}
             rates={listing.rates}
             isCharger={listing.type === 'EV_CHARGING'}
+            fits={{
+              maxVehicleClass: listing.parking.maxVehicleClass,
+              connectors: listing.charger?.connectors ?? null,
+            }}
             defaults={{ mode: query.mode, date: query.date, from: query.from, to: query.to }}
             searchHref="/search"
           />

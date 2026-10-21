@@ -186,6 +186,12 @@ export function BookingDetail({ id }: { id: string }) {
               ? 'the host'
               : 'ParkBro'}
           .{b.cancellation.refundPaise ? ` Refund: ${formatRupees(b.cancellation.refundPaise)}.` : ''}
+          {b.cancellation.reason ? (
+            <>
+              <br />
+              <span className="muted">Reason: {b.cancellation.reason}</span>
+            </>
+          ) : null}
         </p>
       ) : null}
 

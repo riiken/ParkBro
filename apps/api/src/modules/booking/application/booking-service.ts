@@ -893,6 +893,7 @@ export function createBookingService(deps: {
             }).refundPaise
           : null,
         cancelledBy: row.cancelled_by as Canceller | null,
+        reason: row.cancelled_by && row.cancelled_by !== 'CUSTOMER' ? (row.cancel_reason ?? null) : null,
         refundPaise: row.refund_paise === null ? null : Number(row.refund_paise),
       },
       access: revealed

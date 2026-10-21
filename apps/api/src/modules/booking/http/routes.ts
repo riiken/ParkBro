@@ -66,6 +66,8 @@ const customerBookingView = z.object({
     cancellable: z.boolean(),
     refundIfCancelledNowPaise: z.number().nullable(),
     cancelledBy: z.enum(['CUSTOMER', 'HOST', 'PLATFORM']).nullable(),
+    /** The host's or ParkBro's explanation (the host form promises the customer sees it). */
+    reason: z.string().nullable(),
     refundPaise: z.number().nullable(),
   }),
   series: z.object({ id: z.uuid(), periodIndex: z.number().int() }).nullable(),

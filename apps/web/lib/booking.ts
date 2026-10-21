@@ -21,6 +21,7 @@ export interface BookingView {
     cancellable: boolean;
     refundIfCancelledNowPaise: number | null;
     cancelledBy: 'CUSTOMER' | 'HOST' | 'PLATFORM' | null;
+    reason: string | null;
     refundPaise: number | null;
   };
   access: { address: string | null; unitLabel: string | null; instructions: string | null } | null;

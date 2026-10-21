@@ -199,3 +199,85 @@ const pl = () => PL[Math.floor(Math.random() * PL.length)];
 /** Unique plate: a plate can be active on only one account. */
 export const uniquePlate = () =>
   `KA 0${1 + Math.floor(Math.random() * 9)} ${pl()}${pl()} ${1000 + Math.floor(Math.random() * 9000)}`;
+
+/** Test-database access for time travel (e.g. "the booking started 40 minutes ago"). Test-only. */
+export async function sql(text: string, params: unknown[] = []) {
+  const { default: pg } = await import('pg');
+  const { apiEnv } = await import('../playwright.config.ts');
+  const client = new pg.Client({ connectionString: apiEnv.DATABASE_URL });
+  await client.connect();
+  try {
+    return (await client.query(text, params)).rows;
+  } finally {
+    await client.end();
+  }
+}
+
+/** Signs a new host up in the browser and returns an API session that shares the browser's cookies. */
+export async function hostInBrowser(
+  page: Page,
+  playwright: { request: { newContext: (o: object) => Promise<APIRequestContext> } },
+  baseURL: string,
+  name = 'Audit Host',
+) {
+  await page.goto('/host');
+  const phone = uniquePhone();
+  await page.getByLabel('Mobile number').fill(phone);
+  await page.getByRole('button', { name: 'Send code' }).click();
+  await page.getByLabel('6-digit code').fill(E2E_OTP_CODE);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByLabel('Your name').fill(name);
+  await page.getByLabel('I am 18 or older').check();
+  await page.getByLabel(/I agree to the/).check();
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await page.getByLabel('Your name as customers see it').fill(name.split(' ')[0] ?? name);
+  await page.getByRole('button', { name: 'Become a host' }).click();
+  await expect(page.getByRole('heading', { name: /^Hi / })).toBeVisible();
+  const cookie = (await page.context().cookies()).map((c) => `${c.name}=${c.value}`).join('; ');
+  const api = await playwright.request.newContext({ baseURL, extraHTTPHeaders: { cookie } });
+  return { api, headers: { 'x-requested-with': 'fetch' }, phone };
+}
+
+/** A customer (API) with a vehicle that books a window on a listing; optionally pays (test checkout). */
+export async function customerBooks(
+  api: APIRequestContext,
+  listingId: string,
+  window: { start: string; end: string; mode?: string },
+  opts: { pay?: boolean; vehicleClass?: string; name?: string } = {},
+) {
+  const c = await registerUser(api, opts.name ?? 'Ravi Kumar');
+  const v = await api.post('/api/v1/me/vehicles', {
+    headers: c.headers,
+    data: { plate: uniquePlate(), vehicleClass: opts.vehicleClass ?? 'HATCHBACK' },
+  });
+  if (!v.ok()) throw new Error(`vehicle: ${await v.text()}`);
+  const vehicle = (await v.json()) as { id: string; plate: string };
+  const q = await api.post('/api/v1/quotes', {
+    headers: c.headers,
+    data: { assetId: listingId, mode: window.mode ?? 'HOURLY', start: window.start, end: window.end },
+  });
+  if (!q.ok()) throw new Error(`quote: ${await q.text()}`);
+  const b = await api.post('/api/v1/bookings', {
+    headers: { ...c.headers, 'idempotency-key': crypto.randomUUID() },
+    data: { quoteId: (await q.json()).quoteId, vehicleId: vehicle.id },
+  });
+  if (!b.ok()) throw new Error(`booking: ${await b.text()}`);
+  const booking = (await b.json()) as { id: string; status: string };
+  if (opts.pay) await pay(api, c.headers, booking.id);
+  return { customer: c, booking, vehicle };
+}
+
+export async function pay(api: APIRequestContext, headers: Record<string, string>, bookingId: string) {
+  const p = await api.post(`/api/v1/bookings/${bookingId}/payments`, {
+    headers: { ...headers, 'idempotency-key': crypto.randomUUID() },
+  });
+  if (!p.ok()) throw new Error(`payment: ${await p.text()}`);
+  const done = await api.post(`/api/v1/dev/fake-checkout/${(await p.json()).id}`, {
+    headers,
+    data: { outcome: 'captured' },
+  });
+  if (!done.ok()) throw new Error(`checkout: ${await done.text()}`);
+}
+
+/** ISO instant for an IST date + HH:MM. */
+export const ist = (date: string, hhmm: string) => new Date(`${date}T${hhmm}:00+05:30`).toISOString();

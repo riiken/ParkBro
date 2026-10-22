@@ -24,7 +24,7 @@ services:
     runtime: node
     region: singapore
     plan: starter # persistent disks need a paid plan
-    buildCommand: corepack enable pnpm && pnpm install --frozen-lockfile --prod=false
+    buildCommand: export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 && corepack pnpm install --frozen-lockfile --prod=false
     startCommand: node apps/api/src/platform/db/cli.ts migrate && node apps/api/src/main.ts
     healthCheckPath: /api/health/ready
     disk:
@@ -86,7 +86,7 @@ services:
     runtime: node
     region: singapore
     plan: starter
-    buildCommand: corepack enable pnpm && pnpm install --frozen-lockfile --prod=false && pnpm --filter @parkbro/web build
+    buildCommand: export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 && corepack pnpm install --frozen-lockfile --prod=false && corepack pnpm --filter @parkbro/web build
     startCommand: cd apps/web && ./node_modules/.bin/next start -H 0.0.0.0 -p $PORT
     healthCheckPath: /
     envVars:
@@ -109,7 +109,7 @@ services:
     runtime: node
     region: singapore
     plan: starter
-    buildCommand: corepack enable pnpm && pnpm install --frozen-lockfile --prod=false && pnpm --filter @parkbro/admin build
+    buildCommand: export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 && corepack pnpm install --frozen-lockfile --prod=false && corepack pnpm --filter @parkbro/admin build
     startCommand: cd apps/admin && ./node_modules/.bin/next start -H 0.0.0.0 -p $PORT
     healthCheckPath: /sign-in
     envVars:

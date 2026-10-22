@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { apiRequest } from '@parkbro/web-kit';
 import Link from 'next/link';
 import { PagedList, ReasonAction, short, when } from '../../lib/admin';
@@ -16,10 +17,12 @@ interface R {
 }
 
 export default function ReviewsPage() {
+  const [refresh, setRefresh] = useState(0);
   return (
     <div>
       <h1>Reviews</h1>
       <PagedList<R>
+        refresh={refresh}
         base="/api/admin/v1/reviews"
         filters={[
           {
@@ -59,7 +62,10 @@ export default function ReviewsPage() {
                   label="Remove"
                   danger
                   run={(reason) =>
-                    apiRequest(`/api/admin/v1/reviews/${r.id}/remove`, { method: 'POST', body: { reason } })
+                    apiRequest(`/api/admin/v1/reviews/${r.id}/remove`, {
+                      method: 'POST',
+                      body: { reason },
+                    }).then(() => setRefresh((n) => n + 1))
                   }
                 />
               ) : null,

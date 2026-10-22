@@ -27,6 +27,8 @@ export interface ListingSpec {
   units?: string[];
   approvalRequired?: boolean;
   hue?: number;
+  /** false: submit for review but leave it in the admin queue. */
+  approve?: boolean;
 }
 
 export async function seedListing(
@@ -131,10 +133,12 @@ export async function seedListing(
     );
   }
   await ok(post(`${base}/submit`), 'submit');
-  await ok(
-    admin.api.post(`/api/admin/assets/${asset.id}/approve`, { data: {}, headers: admin.headers }),
-    'approve',
-  );
+  if (spec.approve !== false) {
+    await ok(
+      admin.api.post(`/api/admin/assets/${asset.id}/approve`, { data: {}, headers: admin.headers }),
+      'approve',
+    );
+  }
   return { id: asset.id, propertyId: property.id, host: owner };
 }
 
@@ -281,3 +285,34 @@ export async function pay(api: APIRequestContext, headers: Record<string, string
 
 /** ISO instant for an IST date + HH:MM. */
 export const ist = (date: string, hhmm: string) => new Date(`${date}T${hhmm}:00+05:30`).toISOString();
+
+/** Grants an admin role to a fresh user and signs them into the admin console in the browser (OTP + TOTP). */
+export async function adminInBrowser(
+  page: Page,
+  api: APIRequestContext,
+  adminUrl: string,
+  permissions = 'SUPER_ADMIN',
+) {
+  const { execFileSync } = await import('node:child_process');
+  const path = await import('node:path');
+  const { apiEnv } = await import('../playwright.config.ts');
+  const { base32Decode, hotp, totpStep } = await import('../../apps/api/src/modules/identity/domain/totp.ts');
+  const { phone } = await registerUser(api, 'Audit Admin', uniquePhone('7'));
+  const out = execFileSync(
+    'node',
+    [path.resolve(import.meta.dirname, '../../apps/api/src/cli/grant-admin.ts'), phone, permissions],
+    { env: { ...process.env, ...apiEnv }, encoding: 'utf8' },
+  );
+  const secret = new URL(/otpauth:\/\/\S+/.exec(out)?.[0] ?? '').searchParams.get('secret') ?? '';
+  await sql(`DELETE FROM platform.rate_limit_counters WHERE key LIKE 'otp-send:phone30s:%'`);
+  await page.goto(`${adminUrl}/sign-in`);
+  await page.getByLabel('Mobile number').fill(phone);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByLabel('6-digit code').fill(E2E_OTP_CODE);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page
+    .getByLabel('Code from your authenticator app')
+    .fill(hotp(base32Decode(secret), totpStep(Math.floor(Date.now() / 1000))));
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+}

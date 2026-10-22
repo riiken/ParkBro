@@ -72,10 +72,11 @@ export async function registerUser(
 export async function adminSession(
   playwright: { request: { newContext(o: object): Promise<APIRequestContext> } },
   baseURL: string,
+  permissions = 'TRUST_SAFETY',
 ): Promise<Session> {
   const api = await playwright.request.newContext({ baseURL });
   const { phone } = await registerUser(api, 'Review Admin', uniquePhone('7'));
-  const out = execFileSync('node', [grantCli, phone, 'TRUST_SAFETY'], {
+  const out = execFileSync('node', [grantCli, phone, permissions], {
     env: { ...process.env, ...apiEnv },
     encoding: 'utf8',
   });

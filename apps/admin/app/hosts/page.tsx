@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { apiRequest } from '@parkbro/web-kit';
 import Link from 'next/link';
 import { PagedList, ReasonAction, when } from '../../lib/admin';
@@ -14,6 +15,7 @@ interface H {
 }
 
 export default function HostsPage() {
+  const [refresh, setRefresh] = useState(0);
   return (
     <div>
       <h1>Host accounts</h1>
@@ -22,6 +24,7 @@ export default function HostsPage() {
         stand.
       </p>
       <PagedList<H>
+        refresh={refresh}
         base="/api/admin/v1/hosts"
         filters={[
           { name: 'q', label: 'Name' },
@@ -41,6 +44,10 @@ export default function HostsPage() {
             label: 'Host',
             render: (h) =>
               h.ownerUserId ? <Link href={`/users/${h.ownerUserId}`}>{h.displayName}</Link> : h.displayName,
+          },
+          {
+            label: 'Account id',
+            render: (h) => <code className="small">{h.id}</code>, // needed to add a host to a society
           },
           { label: 'Kind', render: (h) => h.kind },
           { label: 'Status', render: (h) => h.status },
@@ -66,7 +73,7 @@ export default function HostsPage() {
                   apiRequest(`/api/admin/v1/hosts/${h.id}/status`, {
                     method: 'POST',
                     body: { reason, status: String(f.get('status')) },
-                  })
+                  }).then(() => setRefresh((n) => n + 1))
                 }
               />
             ),

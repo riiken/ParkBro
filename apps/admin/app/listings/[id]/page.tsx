@@ -93,7 +93,12 @@ export default function ListingReview({ params }: { params: Promise<{ id: string
           <ReasonAction label="Suspend listing" danger run={(r) => act('suspend', r)} />
         ) : null}
         {a.status === 'SUSPENDED' ? (
-          <ReasonAction label="Reinstate" run={(r) => act('reinstate', r)} />
+          <>
+            <ReasonAction label="Reinstate" run={(r) => act('reinstate', r)} />
+            <p className="small muted">
+              Reinstating returns it to Paused: the host publishes it again when ready.
+            </p>
+          </>
         ) : null}
       </div>
     </div>

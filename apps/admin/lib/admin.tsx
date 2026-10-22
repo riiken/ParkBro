@@ -60,8 +60,11 @@ export function PagedList<T>({
   columns,
   rowKey,
   empty = 'Nothing found.',
+  refresh = 0,
 }: {
   base: string;
+  /** Bump after an action on a row so the list shows the new state (filters and page are kept). */
+  refresh?: number;
   filters?: { name: string; label: string; options?: [string, string][] }[];
   columns: { label: string; render: (row: T) => ReactNode }[];
   rowKey: (row: T) => string;
@@ -75,6 +78,7 @@ export function PagedList<T>({
     offset: String(offset),
     limit: String(limit),
   });
+  if (refresh) qs.set('_r', String(refresh));
   const { data, error } = useApi<Page<T>>(`${base}${base.includes('?') ? '&' : '?'}${qs}`);
 
   function apply(e: FormEvent<HTMLFormElement>) {

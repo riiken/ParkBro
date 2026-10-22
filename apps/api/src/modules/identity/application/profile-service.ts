@@ -1,4 +1,4 @@
-import type { Kysely } from 'kysely';
+import { sql, type Kysely } from 'kysely';
 import type { AuditLog } from '../../../platform/audit/audit-log.ts';
 import type { AdminPermission, Role } from '../../../platform/auth/actor.ts';
 import type { FieldCipher } from '../../../platform/crypto/field-cipher.ts';
@@ -91,6 +91,8 @@ export function createProfileService(deps: {
     phone: string;
     permissions: AdminPermission[];
     grantedBy: string | null;
+    /** Lost authenticator: issue a new secret (the old one stops working) and end their admin sessions. */
+    resetAuthenticator?: boolean;
   }) {
     const phoneE164 = normalizeIndianMobile(input.phone);
     if (!phoneE164) throw new Error('invalid phone number');
@@ -121,7 +123,33 @@ export function createProfileService(deps: {
         .where('user_id', '=', user.id)
         .executeTakeFirst();
       let enrollmentUri: string | null = null;
-      if (!mfa) {
+      if (mfa && input.resetAuthenticator) {
+        const secret = generateTotpSecret();
+        await trx
+          .updateTable('identity.admin_mfa')
+          .set({ totp_secret_enc: deps.cipher.encrypt(secret, TOTP_CIPHER_CONTEXT), last_used_step: 0 })
+          .where('user_id', '=', user.id)
+          .execute();
+        await trx
+          .updateTable('identity.sessions')
+          .set({ revoked_at: sql<Date>`now()`, revoked_reason: 'ADMIN_REVOKED' })
+          .where('user_id', '=', user.id)
+          .where('kind', '=', 'ADMIN')
+          .where('revoked_at', 'is', null)
+          .execute();
+        enrollmentUri = otpauthUri(secret, `admin-${phoneE164.slice(-4)}`, 'ParkBro Admin');
+        await deps.audit.record(
+          {
+            actorKind: input.grantedBy ? 'ADMIN' : 'SYSTEM',
+            actorId: input.grantedBy,
+            action: 'admin.authenticator_reset',
+            entityKind: 'user',
+            entityId: user.id,
+            requestId: `cli-${uuidv7()}`,
+          },
+          trx,
+        );
+      } else if (!mfa) {
         const secret = generateTotpSecret();
         await trx
           .insertInto('identity.admin_mfa')
